@@ -10,6 +10,24 @@
 #include <semaphore.h>
 #include <time.h>
 #define max_inp_to_entities 100
+// color scheme
+#define BBLK "\e[1;30m"
+#define BRED "\e[1;31m"
+#define BGRN "\e[1;32m"
+#define BYEL "\e[1;33m"
+#define BBLU "\e[1;34m"
+#define BMAG "\e[1;35m"
+#define BCYN "\e[1;36m"
+#define ANSI_RESET "\x1b[0m"
+
+// RED  - STUDENT FILLED PREFERENCE AND EXIT FROM SIMULATION {1. COURSE SELECTED  AND  2. DIDN'T FIND ANYTHING SUITABLE }
+// GREEN - STUDENT CHANGED PRIORITY / PREFERENCE  AND WITHDRAWN FROM COURSE
+// YELLOW - STUDENT ALLOCATED A SEAT
+// BLUE - NUMBER OF SLOTS DECIDED BY COURSE  EXIT BY COURSE
+// MAG - ALLOCATION OF TA
+// CYN - STARTING OF TUT AND ENDING OF TUT
+// BLK - REMOVAL OF LAB
+
 typedef struct students students;
 typedef struct c_labs c_labs;
 typedef struct courses courses;
@@ -52,6 +70,7 @@ struct c_labs
     int max_allocation;
     int TA_record[max_inp_to_entities];
     int TA_status[max_inp_to_entities];
+    int lab_status;
     pthread_mutex_t mutex;
 };
 students *students_ptr[max_inp_to_entities];
@@ -78,7 +97,7 @@ void *init_students(void *ptr)
     // sleep before arrival
     sleep(students_ptr[id]->reach_time);
     // it has arrived/filled
-    printf("Student %d has filled in preferences for course registration\n", id);
+    printf(BRED "Student %d has filled in preferences for course registration\n" ANSI_RESET, id );
     while (students_ptr[id]->curr_stat != 0)
     {
         if (students_ptr[id]->curr_stat == 1)
@@ -97,44 +116,45 @@ void *init_students(void *ptr)
             }
             if (courses_ptr[course_id]->status == 1)
             {
-                printf("student %d -Course %s no more, need to change preference \n", id, courses_ptr[course_id]->name);
-                //pthread_cond_signal(&courses_ptr[course_id]->ready_for_allocation);
+                printf(BGRN"student %d - Course %s no more, need to change preference \n"ANSI_RESET, id, courses_ptr[course_id]->name);
+                // pthread_cond_signal(&courses_ptr[course_id]->ready_for_allocation);
                 change_karna = true;
             }
             else
             {
                 courses_ptr[course_id]->slot_decided--;
                 courses_ptr[course_id]->slot_filled++;
-                printf("Student %d has been allocated a seat in course %s\n", id, courses_ptr[course_id]->name);
+                printf(BYEL"Student %d has been allocated a seat in course %s\n"ANSI_RESET, id, courses_ptr[course_id]->name);
             }
             pthread_mutex_unlock(&courses_ptr[course_id]->mutex);
             if (change_karna)
             {
-                printf("Student %d has changed current preference from %s (priority 1) to %s (priority 2)\n", id, courses_ptr[course_id]->name, courses_ptr[students_ptr[id]->prefer_2]->name);
+                printf(BGRN"Student %d has changed current preference from %s (priority 1) to %s (priority 2)\n"ANSI_RESET, id, courses_ptr[course_id]->name, courses_ptr[students_ptr[id]->prefer_2]->name);
                 students_ptr[id]->curr_stat = 2;
             }
             else
             {
                 pthread_mutex_lock(&courses_ptr[course_id]->mutex);
-                while(courses_ptr[course_id]->tut_over==1)
+                while (courses_ptr[course_id]->tut_over == 1)
                 {
                     pthread_cond_wait(&courses_ptr[course_id]->tut_is_over, &courses_ptr[course_id]->mutex);
                 }
                 pthread_mutex_unlock(&courses_ptr[course_id]->mutex);
-                //pthread_cond_signal(&courses_ptr[course_id]->tut_is_over);
-                // tut will be over
-                // prob wala kaam
-                // Prob = (interest of the course) x (student’s calibre)
+                // pthread_cond_signal(&courses_ptr[course_id]->tut_is_over);
+                //  tut will be over
+                //  prob wala kaam
+                //  Prob = (interest of the course) x (student’s calibre)
                 float prob = courses_ptr[course_id]->interest * students_ptr[id]->calibre;
                 bool like = like_or_not(prob);
                 if (like)
                 {
-                    printf("Student %d has selected course %s permanently\n", id, courses_ptr[course_id]->name);
+                    printf(BRED"Student %d has selected course %s permanently\n"ANSI_RESET, id, courses_ptr[course_id]->name);
                     students_ptr[id]->curr_stat = 0;
                 }
                 else
                 {
-                    printf("Student %d has changed current preference from %s (priority 1) to %s (priority 2)\n", id, courses_ptr[course_id]->name, courses_ptr[students_ptr[id]->prefer_2]->name);
+                    printf(BGRN"Student %d has withdrawn from course %s\n"ANSI_RESET,id,courses_ptr[course_id]->name);
+                    printf(BGRN"Student %d has changed current preference from %s (priority 1) to %s (priority 2)\n"ANSI_RESET, id, courses_ptr[course_id]->name, courses_ptr[students_ptr[id]->prefer_2]->name);
                     students_ptr[id]->curr_stat = 2;
                 }
             }
@@ -155,7 +175,7 @@ void *init_students(void *ptr)
             }
             if (courses_ptr[course_id]->status == 1)
             {
-                printf("student %d -Course %s no more, need to change preference \n", id, courses_ptr[course_id]->name);
+                printf(BGRN"student %d - Course %s no more, need to change preference \n"ANSI_RESET, id, courses_ptr[course_id]->name);
                 // pthread_cond_signal(&courses_ptr[course_id]->ready_for_allocation);
                 change_karna = true;
             }
@@ -163,18 +183,18 @@ void *init_students(void *ptr)
             {
                 courses_ptr[course_id]->slot_decided--;
                 courses_ptr[course_id]->slot_filled++;
-                printf("Student %d has been allocated a seat in course %s\n", id, courses_ptr[course_id]->name);
+                printf(BYEL"Student %d has been allocated a seat in course %s\n"ANSI_RESET, id, courses_ptr[course_id]->name);
             }
             pthread_mutex_unlock(&courses_ptr[course_id]->mutex);
             if (change_karna)
             {
-                printf("Student %d has changed current preference from %s (priority 2) to %s (priority 3)\n", id, courses_ptr[course_id]->name, courses_ptr[students_ptr[id]->prefer_3]->name);
+                printf(BGRN"Student %d has changed current preference from %s (priority 2) to %s (priority 3)\n"ANSI_RESET, id, courses_ptr[course_id]->name, courses_ptr[students_ptr[id]->prefer_3]->name);
                 students_ptr[id]->curr_stat = 3;
             }
             else
             {
                 pthread_mutex_lock(&courses_ptr[course_id]->mutex);
-                while(courses_ptr[course_id]->tut_over==1)
+                while (courses_ptr[course_id]->tut_over == 1)
                 {
                     pthread_cond_wait(&courses_ptr[course_id]->tut_is_over, &courses_ptr[course_id]->mutex);
                 }
@@ -186,12 +206,13 @@ void *init_students(void *ptr)
                 bool like = like_or_not(prob);
                 if (like)
                 {
-                    printf("Student %d has selected course %s permanently\n", id, courses_ptr[course_id]->name);
+                    printf(BRED"Student %d has selected course %s permanently\n"ANSI_RESET, id, courses_ptr[course_id]->name);
                     students_ptr[id]->curr_stat = 0;
                 }
                 else
                 {
-                    printf("Student %d has changed current preference from %s (priority 2) to %s (priority 3)\n", id, courses_ptr[course_id]->name, courses_ptr[students_ptr[id]->prefer_3]->name);
+                    printf(BGRN"Student %d has withdrawn from course %s\n"ANSI_RESET,id,courses_ptr[course_id]->name);
+                    printf(BGRN"Student %d has changed current preference from %s (priority 2) to %s (priority 3)\n"ANSI_RESET, id, courses_ptr[course_id]->name, courses_ptr[students_ptr[id]->prefer_3]->name);
                     students_ptr[id]->curr_stat = 3;
                 }
             }
@@ -212,27 +233,27 @@ void *init_students(void *ptr)
             }
             if (courses_ptr[course_id]->status == 1)
             {
-                printf("student %d -Course %s no more, need to change preference \n", id, courses_ptr[course_id]->name);
-                //pthread_cond_signal(&courses_ptr[course_id]->ready_for_allocation);
+                printf(BGRN"student %d - Course %s no more, need to change preference \n"ANSI_RESET, id, courses_ptr[course_id]->name);
+                // pthread_cond_signal(&courses_ptr[course_id]->ready_for_allocation);
                 change_karna = true;
             }
             else
             {
                 courses_ptr[course_id]->slot_decided--;
                 courses_ptr[course_id]->slot_filled++;
-                printf("Student %d has been allocated a seat in course %s\n", id, courses_ptr[course_id]->name);
+                printf(BYEL"Student %d has been allocated a seat in course %s\n"ANSI_RESET, id, courses_ptr[course_id]->name);
             }
             pthread_mutex_unlock(&courses_ptr[course_id]->mutex);
             if (change_karna)
             {
-                printf("Student %d couldn’t get any of his preferred courses\n", id);
+                printf(BRED"Student %d couldn’t get any of his preferred courses\n"ANSI_RESET, id);
                 students_ptr[id]->curr_stat = 0;
             }
             else
             {
                 // sleep ki bajay cond wait karlo ek hi baat hai
                 pthread_mutex_lock(&courses_ptr[course_id]->mutex);
-                while(courses_ptr[course_id]->tut_over==1)
+                while (courses_ptr[course_id]->tut_over == 1)
                 {
                     pthread_cond_wait(&courses_ptr[course_id]->tut_is_over, &courses_ptr[course_id]->mutex);
                 }
@@ -244,12 +265,13 @@ void *init_students(void *ptr)
                 bool like = like_or_not(prob);
                 if (like)
                 {
-                    printf("Student %d has selected course %s permanently\n", id, courses_ptr[course_id]->name);
+                    printf(BRED"Student %d has selected course %s permanently\n"ANSI_RESET, id, courses_ptr[course_id]->name);
                     students_ptr[id]->curr_stat = 0;
                 }
                 else
                 {
-                    printf("Student %d couldn’t get any of his preferred courses\n", id);
+                    printf(BGRN"Student %d has withdrawn from course %s\n"ANSI_RESET,id,courses_ptr[course_id]->name);
+                    printf(BRED"Student %d couldn’t get any of his preferred courses\n"ANSI_RESET, id);
                     students_ptr[id]->curr_stat = 0;
                 }
             }
@@ -262,20 +284,22 @@ void *init_courses(void *ptr)
     int id = *((int *)ptr);
     // search for TA
     // for every lab need a mutex for comparison purposes
-    int golden_number=0;
+    int golden_number = 0;
     for (int i = 0; i < courses_ptr[id]->num_c_labs; i++)
     {
         int c_lab_id = courses_ptr[id]->c_labs_id[i];
-        golden_number+= (c_labs_ptr[c_lab_id]->num_TAs);
+        golden_number += (c_labs_ptr[c_lab_id]->num_TAs);
     }
     while (true)
-    {        
+    {
         bool ta_mila = false;
         int count_ta_over = 0;
         int selected_lab, selected_ta;
         for (int i = 0; i < courses_ptr[id]->num_c_labs; i++)
         {
+            int count_ta_over_special = 0;
             int c_lab_id = courses_ptr[id]->c_labs_id[i];
+            int silver_number = c_labs_ptr[c_lab_id]->num_TAs;
             for (int j = 0; j < c_labs_ptr[c_lab_id]->num_TAs; j++)
             {
                 pthread_mutex_lock(&c_labs_ptr[c_lab_id]->mutex);
@@ -284,12 +308,13 @@ void *init_courses(void *ptr)
                     ta_mila = true;
                     c_labs_ptr[c_lab_id]->TA_status[j] = 1;
                     c_labs_ptr[c_lab_id]->TA_record[j]++;
-                    printf("TA %d from lab %s has been allocated to course %s for his %d TA ship\n", j, c_labs_ptr[c_lab_id]->name, courses_ptr[id]->name, c_labs_ptr[c_lab_id]->TA_record[j]);
+                    printf(BMAG"TA %d from lab %s has been allocated to course %s for his %d TA ship\n"ANSI_RESET, j, c_labs_ptr[c_lab_id]->name, courses_ptr[id]->name, c_labs_ptr[c_lab_id]->TA_record[j]);
                     selected_lab = c_lab_id;
                     selected_ta = j;
                 }
-                else if(c_labs_ptr[c_lab_id]->TA_record[j] == c_labs_ptr[c_lab_id]->max_allocation)
+                else if (c_labs_ptr[c_lab_id]->TA_record[j] == c_labs_ptr[c_lab_id]->max_allocation)
                 {
+                    count_ta_over_special++;
                     count_ta_over++;
                 }
                 pthread_mutex_unlock(&c_labs_ptr[c_lab_id]->mutex);
@@ -302,6 +327,16 @@ void *init_courses(void *ptr)
             {
                 break;
             }
+            pthread_mutex_lock(&c_labs_ptr[c_lab_id]->mutex);
+            if (count_ta_over_special == silver_number)
+            {
+                if (c_labs_ptr[c_lab_id]->lab_status == 0)
+                {
+                    printf(BBLK"Lab %s no longer has students available for TA ship\n"ANSI_RESET, c_labs_ptr[c_lab_id]->name);
+                    c_labs_ptr[c_lab_id]->lab_status = 1;
+                }
+            }
+            pthread_mutex_unlock(&c_labs_ptr[c_lab_id]->mutex);
         }
         if (ta_mila)
         {
@@ -310,34 +345,34 @@ void *init_courses(void *ptr)
             // COND_SIGNAL KARNA HAI
             // WAIT FOR A SEC FOR STUDENT TO JOIN
             pthread_mutex_lock(&courses_ptr[id]->mutex);
-            courses_ptr[id]->slot_decided = get_random_int(1,courses_ptr[id]->max_slot);
-            printf("COURSE %s has decided %d slots\n", courses_ptr[id]->name, courses_ptr[id]->slot_decided);
-            courses_ptr[id]->tut_over=1;
+            courses_ptr[id]->slot_decided = get_random_int(1, courses_ptr[id]->max_slot);
+            printf(BBLU"COURSE %s has decided %d slots\n"ANSI_RESET, courses_ptr[id]->name, courses_ptr[id]->slot_decided);
+            courses_ptr[id]->tut_over = 1;
             pthread_mutex_unlock(&courses_ptr[id]->mutex);
             pthread_cond_broadcast(&courses_ptr[id]->ready_for_allocation);
 
             sleep(2);
             pthread_mutex_lock(&courses_ptr[id]->mutex);
             courses_ptr[id]->slot_decided = 0;
-            printf("course %s has started a tut where slots filled are %d\n", courses_ptr[id]->name, courses_ptr[id]->slot_filled);
+            printf(BCYN"Tutorial has started for course %s has started a tut where slots filled are %d\n"ANSI_RESET, courses_ptr[id]->name, courses_ptr[id]->slot_filled);
             courses_ptr[id]->slot_filled = 0;
             pthread_mutex_unlock(&courses_ptr[id]->mutex);
             sleep(3);
             pthread_mutex_lock(&c_labs_ptr[selected_lab]->mutex);
             c_labs_ptr[selected_lab]->TA_status[selected_ta] = 0;
-            printf("TA DID HIS JOB\n");
+            printf(BCYN"TA %d from lab %s has completed the tutorial and left the course %s\n"ANSI_RESET,selected_ta,c_labs_ptr[selected_lab]->name,courses_ptr[id]->name);
             pthread_mutex_unlock(&c_labs_ptr[selected_lab]->mutex);
             pthread_mutex_lock(&courses_ptr[id]->mutex);
-            courses_ptr[id]->tut_over=0;
+            courses_ptr[id]->tut_over = 0;
             pthread_mutex_unlock(&courses_ptr[id]->mutex);
             pthread_cond_broadcast(&courses_ptr[id]->tut_is_over);
             sleep(2);
         }
-        else if(count_ta_over == golden_number)
+        else if (count_ta_over == golden_number)
         {
             pthread_mutex_lock(&courses_ptr[id]->mutex);
             courses_ptr[id]->status = 1;
-            printf("Course %s doesn’t have any TA’s eligible and is removed from course offerings\n", courses_ptr[id]->name);
+            printf(BBLU"Course %s doesn’t have any TA’s eligible and is removed from course offerings\n"ANSI_RESET, courses_ptr[id]->name);
             pthread_mutex_unlock(&courses_ptr[id]->mutex);
             pthread_cond_broadcast(&courses_ptr[id]->ready_for_allocation);
             break;
@@ -375,6 +410,7 @@ int main()
             c_labs_ptr[i]->TA_status[j] = 0;
             c_labs_ptr[i]->TA_record[j] = 0;
         }
+        c_labs_ptr[i]->lab_status = 0;
         pthread_mutex_init(&(c_labs_ptr[i]->mutex), NULL);
     }
     for (int j = 0; j < num_students; j++)
