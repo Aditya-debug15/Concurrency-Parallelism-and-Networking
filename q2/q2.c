@@ -9,6 +9,25 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <time.h>
+
+// color scheme
+#define BBLK "\e[1;30m"
+#define BRED "\e[1;31m"
+#define BGRN "\e[1;32m"
+#define BYEL "\e[1;33m"
+#define BBLU "\e[1;34m"
+#define BMAG "\e[1;35m"
+#define BCYN "\e[1;36m"
+#define ANSI_RESET "\x1b[0m"
+
+// RED  - STUDENT FILLED PREFERENCE AND EXIT FROM SIMULATION {1. COURSE SELECTED  AND  2. DIDN'T FIND ANYTHING SUITABLE }
+// GREEN - STUDENT CHANGED PRIORITY / PREFERENCE  AND WITHDRAWN FROM COURSE
+// YELLOW - STUDENT ALLOCATED A SEAT
+// BLUE - NUMBER OF SLOTS DECIDED BY COURSE  EXIT BY COURSE
+// MAG - ALLOCATION OF TA
+// CYN - STARTING OF TUT AND ENDING OF TUT
+// BLK - REMOVAL OF LAB
+
 #define max_inp_to_entities 100
 typedef struct person person;
 typedef struct num_group num_group;
@@ -110,11 +129,11 @@ void *init_match(void *ptr)
             }
             pthread_mutex_unlock(&goal_time_ke_liye);
             pthread_cond_broadcast(&for_stay);
-            printf("%c has scored the goal at t=%d\n", match_ptr[i]->team, current_time);
+            printf(BCYN"TEAM %c has scored the goal \n"ANSI_RESET, match_ptr[i]->team);
         }
         else
         {
-            printf("%c missed the goal at t=%d\n", match_ptr[i]->team, current_time);
+            printf(BBLK"Team %c missed the goal \n"ANSI_RESET, match_ptr[i]->team);
         }
     }
     pthread_mutex_lock(&simulation);
@@ -134,7 +153,7 @@ void *init_spectator(void *ptr)
     {
         sleep(arrival_time - curi_time);
     }
-    printf("%s has arrived at %d \n", spectator_ptr[id]->name, current_time);
+    printf(BRED"%s has reached the stadium \n"ANSI_RESET, spectator_ptr[id]->name);
     struct timespec ts;
     if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
     {
@@ -152,7 +171,7 @@ void *init_spectator(void *ptr)
         {
             if (errno == ETIMEDOUT)
             {
-                printf("%s leaving beacuse of low patience at t=%d \n", spectator_ptr[id]->name, current_time);
+                printf(BYEL"%s could not get a seat beacuse of low patience \n"ANSI_RESET, spectator_ptr[id]->name);
             }
             else
                 perror("sem_timedwait");
@@ -165,13 +184,13 @@ void *init_spectator(void *ptr)
             {
                 case_identifier = 1;
                 home_available--;
-                printf("%s got a seat at H at t=%d \n", spectator_ptr[id]->name, current_time);
+                printf(BGRN"%s got a seat in zone H \n"ANSI_RESET, spectator_ptr[id]->name);
             }
             else
             {
                 case_identifier = 2;
                 neutral_available--;
-                printf("%s got a seat at N at t=%d \n", spectator_ptr[id]->name, current_time);
+                printf(BGRN"%s got a seat in zone N \n"ANSI_RESET, spectator_ptr[id]->name);
             }
             if (case_identifier == 1 || case_identifier == 2)
             {
@@ -193,11 +212,11 @@ void *init_spectator(void *ptr)
             // sleep(spectating_time);
             if (away_goals >= spectator_ptr[id]->num_goals)
             {
-                printf("%s leaving because of poor performance of his team\n", spectator_ptr[id]->name);
+                printf(BMAG"%s leaving because of poor performance of his team\n"ANSI_RESET, spectator_ptr[id]->name);
             }
             else
             {
-                printf("%s leaving beacuse he needs to complete his assignment at t=%d\n", spectator_ptr[id]->name, current_time);
+                printf(BBLU"%s watched the match for %d ,leaving beacuse he needs to complete his assignment\n"ANSI_RESET, spectator_ptr[id]->name,spectating_time);
             }
             pthread_mutex_lock(&lock_tickets);
             if (case_identifier == 1)
@@ -225,7 +244,7 @@ void *init_spectator(void *ptr)
         {
             if (errno == ETIMEDOUT)
             {
-                printf("%s leaving beacuse of low patience at t=%d\n", spectator_ptr[id]->name, current_time);
+                printf(BYEL"%s could not get a seat beacuse of low patience \n"ANSI_RESET, spectator_ptr[id]->name);
             }
             else
                 perror("sem_timedwait");
@@ -236,7 +255,7 @@ void *init_spectator(void *ptr)
             if (away_available > 0)
             {
                 away_available--;
-                printf("%s got a seat at A at t=%d\n", spectator_ptr[id]->name, current_time);
+                printf(BGRN"%s got a seat in zone A \n"ANSI_RESET, spectator_ptr[id]->name);
             }
             sem_wait(&combi_home_away_neutral);
             pthread_mutex_unlock(&lock_tickets);
@@ -254,11 +273,11 @@ void *init_spectator(void *ptr)
             // sleep(spectating_time);
             if (home_goals >= spectator_ptr[id]->num_goals)
             {
-                printf("%s leaving because of poor performance of his team\n", spectator_ptr[id]->name);
+                printf(BMAG"%s leaving because of poor performance of his team\n"ANSI_RESET, spectator_ptr[id]->name);
             }
             else
             {
-                printf("%s leaving beacuse he needs to complete his assignment at t=%d\n", spectator_ptr[id]->name, current_time);
+                printf(BBLU"%s watched the match for %d ,leaving beacuse he needs to complete his assignment\n", spectator_ptr[id]->name, spectating_time);
             }
             // sleep(spectating_time);
             // printf("%s leaving beacuse he needs to complete his assignment at t=%d\n", spectator_ptr[id]->name, current_time);
@@ -278,7 +297,7 @@ void *init_spectator(void *ptr)
         {
             if (errno == ETIMEDOUT)
             {
-                printf("%s leaving beacuse of low patience at t=%d\n", spectator_ptr[id]->name, current_time);
+                printf(BYEL"%s could not get a seat beacuse of low patience\n", spectator_ptr[id]->name);
             }
             else
                 perror("sem_timedwait");
@@ -291,27 +310,31 @@ void *init_spectator(void *ptr)
             {
                 case_identifier = 1;
                 home_available--;
-                printf("%s got a seat at H at t=%d\n", spectator_ptr[id]->name, current_time);
+                printf(BGRN"%s got a seat in zone H \n"ANSI_RESET, spectator_ptr[id]->name);
             }
             else if (neutral_available > 0)
             {
                 case_identifier = 2;
                 neutral_available--;
-                printf("%s got a seat at N at t=%d\n", spectator_ptr[id]->name, current_time);
+                printf(BGRN"%s got a seat in zone N \n"ANSI_RESET, spectator_ptr[id]->name);
             }
             else
             {
                 case_identifier = 3;
                 away_available--;
-                printf("%s got a seat at A at t=%d\n", spectator_ptr[id]->name, current_time);
+                printf(BGRN"%s got a seat in zone A \n"ANSI_RESET, spectator_ptr[id]->name);
             }
             if (case_identifier == 1 || case_identifier == 2)
             {
                 sem_wait(&combi_home_neutral);
             }
+            else if(case_identifier==3)
+            {
+                sem_wait(&away_tickets);
+            }
             pthread_mutex_unlock(&lock_tickets);
             sleep(spectating_time);
-            printf("%s leaving beacuse he needs to complete his assignment at t=%d\n", spectator_ptr[id]->name, current_time);
+            printf(BBLU"%s watched the match for %d ,leaving beacuse he needs to complete his assignment\n"ANSI_RESET, spectator_ptr[id]->name,spectating_time);
             pthread_mutex_lock(&lock_tickets);
             if (case_identifier == 1)
             {
@@ -324,6 +347,11 @@ void *init_spectator(void *ptr)
             if (case_identifier == 1 || case_identifier == 2)
             {
                 sem_post(&combi_home_neutral);
+            }
+            else if(case_identifier==3)
+            {
+                away_available++;
+                sem_post(&away_tickets);
             }
             sem_post(&combi_home_away_neutral);
             pthread_mutex_unlock(&lock_tickets);
