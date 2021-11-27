@@ -40,8 +40,13 @@ int spectating_time;
 int num_groups;
 struct num_group
 {
+    pthread_t thread_obj;
     int id;
     int num_person;
+    int people_exited;
+    int thr_id;
+    pthread_mutex_t gmutex;
+    pthread_cond_t gcond;
 };
 struct person
 {
@@ -54,6 +59,7 @@ struct person
     int curr_stat;
     int thr_id;
     int id;
+    int group_id;
     pthread_mutex_t mutex;
 };
 struct match
@@ -102,6 +108,17 @@ bool goal_or_not(double prob)
         return true;
     }
     return false;
+}
+void *init_groups(void *ptr)
+{
+    int id = *((int *)ptr);
+    pthread_mutex_lock(&num_group_ptr[id]->gmutex);
+    while(num_group_ptr[id]->num_person > num_group_ptr[id]->people_exited)
+    {
+        pthread_cond_wait(&num_group_ptr[id]->gcond,&num_group_ptr[id]->gmutex);
+    }
+    printf(BRED"Group %d is leaving for dinner\n"ANSI_RESET,id);
+    return NULL;
 }
 void *init_match(void *ptr)
 {
@@ -204,7 +221,7 @@ void *init_spectator(void *ptr)
             pthread_mutex_unlock(&goal_time_ke_liye);
 
             pthread_mutex_lock(&goal_time_ke_liye);
-            while (cur_ti > current_time && away_goals < spectator_ptr[id]->num_goals)
+            while (cur_ti > goal_current_time && away_goals < spectator_ptr[id]->num_goals)
             {
                 pthread_cond_wait(&for_stay, &goal_time_ke_liye);
             }
@@ -260,12 +277,12 @@ void *init_spectator(void *ptr)
             sem_wait(&combi_home_away_neutral);
             pthread_mutex_unlock(&lock_tickets);
             int cur_ti;
-            pthread_mutex_lock(&time_ke_liye);
-            cur_ti = current_time;
-            cur_ti += spectating_time;
-            pthread_mutex_unlock(&time_ke_liye);
             pthread_mutex_lock(&goal_time_ke_liye);
-            while (cur_ti > current_time && home_goals < spectator_ptr[id]->num_goals)
+            cur_ti = goal_current_time;
+            cur_ti += spectating_time;
+            pthread_mutex_unlock(&goal_time_ke_liye);
+            pthread_mutex_lock(&goal_time_ke_liye);
+            while (cur_ti > goal_current_time && home_goals < spectator_ptr[id]->num_goals)
             {
                 pthread_cond_wait(&for_stay, &goal_time_ke_liye);
             }
@@ -357,6 +374,11 @@ void *init_spectator(void *ptr)
             pthread_mutex_unlock(&lock_tickets);
         }
     }
+    printf(BBLU"%s is waiting for his friends at exit gate\n"ANSI_RESET,spectator_ptr[id]->name);
+    pthread_mutex_lock(&num_group_ptr[spectator_ptr[id]->group_id]->gmutex);
+    num_group_ptr[spectator_ptr[id]->group_id]->people_exited++;
+    pthread_mutex_unlock(&num_group_ptr[spectator_ptr[id]->group_id]->gmutex);
+    pthread_cond_signal(&num_group_ptr[spectator_ptr[id]->group_id]->gcond);
     pthread_mutex_lock(&simulation);
     st_count++;
     pthread_mutex_unlock(&simulation);
@@ -391,6 +413,7 @@ int main()
     {
         num_group_ptr[j] = (num_group *)malloc(sizeof(num_group));
         num_group_ptr[j]->id = j;
+        num_group_ptr[j]->people_exited=0;
         scanf("%d", &num_group_ptr[j]->num_person);
         for (int i = 0; i < num_group_ptr[j]->num_person; i++)
         {
@@ -398,6 +421,7 @@ int main()
             spectator_ptr[total_person]->curr_stat = -1;
             spectator_ptr[total_person]->id = total_person;
             scanf("%s %c %d %d %d", spectator_ptr[total_person]->name, &spectator_ptr[total_person]->fan, &spectator_ptr[total_person]->reach_time, &spectator_ptr[total_person]->pat_time, &spectator_ptr[total_person]->num_goals);
+            spectator_ptr[total_person]->group_id=j;
             total_person++;
         }
     }
@@ -412,6 +436,11 @@ int main()
     semaphore_init();
     int st_total_count=total_person+1;
     st_count =0;
+    for(int j=0;j<num_groups;j++)
+    {
+        pthread_mutex_init(&(num_group_ptr[j]->gmutex),NULL);
+        num_group_ptr[j]->thr_id = pthread_create(&(num_group_ptr[j]->thread_obj),NULL,init_groups,(void *)(&(num_group_ptr[j]->id)));
+    }
     for (int j = 0; j < total_person; j++)
     {
         pthread_mutex_init(&(spectator_ptr[j]->mutex), NULL);
@@ -443,4 +472,8 @@ int main()
         pthread_join(spectator_ptr[i]->thread_obj, NULL);
     }
     pthread_join(mt.thread_obj, NULL);
+    for(int i=0;i<num_groups;i++)
+    {
+        pthread_join(num_group_ptr[i]->thread_obj,NULL);
+    }
 }
