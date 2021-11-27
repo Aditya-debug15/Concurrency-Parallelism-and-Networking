@@ -1,2 +1,6 @@
 *.out
 *.txt
+*.vscode
+q3/server_tut.cpp
+client
+server
